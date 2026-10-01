@@ -63,7 +63,7 @@ const parseTransfer = (text: string, commandSender: string): Transfer => {
 	const parts = text.trim().split(/\s+/);
 	const [first, second, third, fourth, fifth] = parts;
 
-	if (parts.length === 2 && first && second) {
+	if (parts.length === 2 && first && second && commandSender) {
 		return { fromUsername: commandSender, toUsername: first, points: Number(second) };
 	}
 
@@ -94,7 +94,17 @@ const transferPoints = (text: string, commandSender: string) => {
 	return `${fromUsername} now has ${db[fromUsername]} points and ${toUsername} now has ${db[toUsername]} points`;
 };
 
-const commands: Record<string, (text: string, fromUsername: string) => string> = {
+const getCommandSender = (userId: string, username: string) => {
+	const mention = `<@${userId}>`;
+
+	if (userId && Object.hasOwn(db, mention)) {
+		return mention;
+	}
+
+	return username;
+};
+
+const commands: Record<string, (text: string, commandSender: string) => string> = {
 	'/award': awardPoints,
 	'/points': getPoints,
 	'/transfer': transferPoints,
@@ -113,7 +123,8 @@ app.post("/points", (req, res) => {
 			throw new Error("why");
 		}
 
-		const text = command(req.body.text, req.body.user_name);
+		const commandSender = getCommandSender(req.body.user_id, req.body.user_name);
+		const text = command(req.body.text, commandSender);
 
 		return res.send({ response_type: "in_channel", text });
 	} catch (err) {
