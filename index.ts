@@ -53,22 +53,42 @@ const getPoints = (username: string) => {
 	return `${username} has ${points} points`;
 };
 
-const transferPoints = (text: string, fromUsername: string) => {
-	const [toUsername, points] = text.split(' ');
-	const parsed = Number(points);
+type Transfer = {
+	fromUsername: string;
+	toUsername: string;
+	points: number;
+};
 
-	if (!fromUsername || !toUsername || !Number.isInteger(parsed) || parsed <= 0 || fromUsername === toUsername) {
+const parseTransfer = (text: string, commandSender: string): Transfer => {
+	const parts = text.trim().split(/\s+/);
+	const [first, second, third, fourth, fifth] = parts;
+
+	if (parts.length === 2 && first && second) {
+		return { fromUsername: commandSender, toUsername: first, points: Number(second) };
+	}
+
+	if (parts.length === 5 && first && second === 'from' && third && fourth === 'to' && fifth) {
+		return { fromUsername: third, toUsername: fifth, points: Number(first) };
+	}
+
+	throw new Error("why");
+};
+
+const transferPoints = (text: string, commandSender: string) => {
+	const { fromUsername, toUsername, points } = parseTransfer(text, commandSender);
+
+	if (!fromUsername || !Number.isInteger(points) || points <= 0 || fromUsername === toUsername) {
 		throw new Error("why");
 	}
 
 	const fromPoints = db[fromUsername] ?? 0;
 
-	if (fromPoints < parsed) {
+	if (fromPoints < points) {
 		throw new Error("why");
 	}
 
-	db[fromUsername] = fromPoints - parsed;
-	db[toUsername] = (db[toUsername] ?? 0) + parsed;
+	db[fromUsername] = fromPoints - points;
+	db[toUsername] = (db[toUsername] ?? 0) + points;
 	savePoints();
 
 	return `${fromUsername} now has ${db[fromUsername]} points and ${toUsername} now has ${db[toUsername]} points`;
