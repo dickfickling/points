@@ -16,36 +16,84 @@ const app = express();
 app.use( json({ limit: 1 * 1024 * 1024, }),);
 app.use(express.urlencoded({ extended: true }));
 
+const savePoints = () => {
+	writeFileSync('./db.txt', JSON.stringify(db));
+};
+
+const awardPoints = (text: string) => {
+	const [username, points] = text.split(' ');
+
+	if (!username || !points) {
+		throw new Error("why");
+	}
+
+	const parsed = parseInt(points);
+
+	if (isNaN(parsed)) {
+		throw new Error("why");
+	}
+
+	db[username] = (db[username] ?? 0) + parsed;
+	savePoints();
+
+	return `${username} now has ${db[username]} points`;
+};
+
+const getPoints = (username: string) => {
+	if (!username) {
+		return Object.entries(db).map(([k,v]) => `${k}: ${v} points`).join('\n');
+	}
+
+	const points = db[username] ?? 0;
+
+	return `${username} has ${points} points`;
+};
+
+const transferPoints = (text: string) => {
+	const [fromUsername, toUsername, points] = text.split(' ');
+	const parsed = Number(points);
+
+	if (!fromUsername || !toUsername || !Number.isInteger(parsed) || parsed <= 0 || fromUsername === toUsername) {
+		throw new Error("why");
+	}
+
+	const fromPoints = db[fromUsername] ?? 0;
+
+	if (fromPoints < parsed) {
+		throw new Error("why");
+	}
+
+	db[fromUsername] = fromPoints - parsed;
+	db[toUsername] = (db[toUsername] ?? 0) + parsed;
+	savePoints();
+
+	return `${fromUsername} now has ${db[fromUsername]} points and ${toUsername} now has ${db[toUsername]} points`;
+};
+
+const commands: Record<string, (text: string) => string> = {
+	'/award': awardPoints,
+	'/points': getPoints,
+	'/transfer': transferPoints,
+};
+
 app.get("/", (req, res) => {
 	return res.send({ ok: true });
 });
 
 app.post("/points", (req, res) => {
 	try {
-	if (req.body.command === '/award') {
-		const [username, points] = req.body.text.split(' ');
-		const parsed = parseInt(points);
-		if (isNaN(parsed)) {
+		const command = commands[req.body.command];
+
+		if (!command) {
 			throw new Error("why");
 		}
-		if (!db[username]) {
-			db[username] = parsed;
-		} else {
-			db[username] = db[username] + parsed;
-		}
-		writeFileSync('./db.txt', JSON.stringify(db));
-		return res.send({ response_type: "in_channel", text: `${username} now has ${db[username]} points` });
-	} else if (req.body.command === '/points') {
-		const username = req.body.text;
-		if (!username) {
-			const everyone = Object.entries(db).map(([k,v]) => `${k}: ${v} points`).join('\n');
-			return res.send({ response_type: "in_channel", text: everyone });
-		}
-		const points = db[username] ?? 0;
-		return res.send({ response_type: "in_channel", text: `${username} has ${points} points` });
-	}
+
+		const text = command(req.body.text);
+
+		return res.send({ response_type: "in_channel", text });
 	} catch (err) {
 		console.error(err);
+
 		return res.send({ response_type: "in_channel", text: "I don't know what to do with that" });
 	}
 });
