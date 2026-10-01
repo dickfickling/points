@@ -53,8 +53,8 @@ const getPoints = (username: string) => {
 	return `${username} has ${points} points`;
 };
 
-const transferPoints = (text: string) => {
-	const [fromUsername, toUsername, points] = text.split(' ');
+const transferPoints = (text: string, fromUsername: string) => {
+	const [toUsername, points] = text.split(' ');
 	const parsed = Number(points);
 
 	if (!fromUsername || !toUsername || !Number.isInteger(parsed) || parsed <= 0 || fromUsername === toUsername) {
@@ -74,7 +74,7 @@ const transferPoints = (text: string) => {
 	return `${fromUsername} now has ${db[fromUsername]} points and ${toUsername} now has ${db[toUsername]} points`;
 };
 
-const commands: Record<string, (text: string) => string> = {
+const commands: Record<string, (text: string, fromUsername: string) => string> = {
 	'/award': awardPoints,
 	'/points': getPoints,
 	'/transfer': transferPoints,
@@ -93,7 +93,7 @@ app.post("/points", (req, res) => {
 			throw new Error("why");
 		}
 
-		const text = command(req.body.text);
+		const text = command(req.body.text, req.body.user_name);
 
 		return res.send({ response_type: "in_channel", text });
 	} catch (err) {
