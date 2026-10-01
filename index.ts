@@ -21,10 +21,14 @@ app.get("/", (req, res) => {
 });
 
 app.post("/points", (req, res) => {
+	console.log(req.body);
 	try {
 	if (req.body.command === '/award') {
-		const [username, points] = req.body.text.split(' ');
-		const parsed = parseInt(points);
+		const [username, points, reason] = req.body.text.split(' ');
+		let parsed = parseInt(points);
+		if (reason === "random") {
+			parsed = Math.ceil(Math.random() * parsed);
+		}
 		if (isNaN(parsed)) {
 			throw new Error("why");
 		}
@@ -34,11 +38,11 @@ app.post("/points", (req, res) => {
 			db[username] = db[username] + parsed;
 		}
 		writeFileSync('./db.txt', JSON.stringify(db));
-		return res.send({ response_type: "in_channel", text: `${username} now has ${db[username]} points` });
+		return res.send({ response_type: "in_channel", text: `${reason === "random" ? `Awarded ${username} ${parsed} points at random. ` : ''}${username} now has ${db[username]} points` });
 	} else if (req.body.command === '/points') {
 		const username = req.body.text;
 		if (!username) {
-			const everyone = Object.entries(db).map(([k,v]) => `${k}: ${v} points`).join('\n');
+			const everyone = Object.entries(db).sort((a, b) => b[1] - a[1]).map(([k,v]) => `${k}: ${v} points`).join('\n');
 			return res.send({ response_type: "in_channel", text: everyone });
 		}
 		const points = db[username] ?? 0;
