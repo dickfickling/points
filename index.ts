@@ -21,13 +21,17 @@ const savePoints = () => {
 };
 
 const awardPoints = (text: string) => {
-	const [username, points] = text.split(' ');
+	const [username, points, reason] = text.split(' ');
 
 	if (!username || !points) {
 		throw new Error("why");
 	}
 
-	const parsed = parseInt(points);
+	let parsed = parseInt(points);
+
+	if (reason === "random") {
+		parsed = Math.ceil(Math.random() * parsed);
+	}
 
 	if (isNaN(parsed)) {
 		throw new Error("why");
@@ -36,12 +40,12 @@ const awardPoints = (text: string) => {
 	db[username] = (db[username] ?? 0) + parsed;
 	savePoints();
 
-	return `${username} now has ${db[username]} points`;
+	return `${reason === "random" ? `Awarded ${username} ${parsed} points at random. ` : ''}${username} now has ${db[username]} points`;
 };
 
 const getPoints = (username: string) => {
 	if (!username) {
-		return Object.entries(db).map(([k,v]) => `${k}: ${v} points`).join('\n');
+		return Object.entries(db).sort((a, b) => b[1] - a[1]).map(([k,v]) => `${k}: ${v} points`).join('\n');
 	}
 
 	const points = db[username] ?? 0;
@@ -81,6 +85,7 @@ app.get("/", (req, res) => {
 });
 
 app.post("/points", (req, res) => {
+	console.log(req.body);
 	try {
 		const command = commands[req.body.command];
 
