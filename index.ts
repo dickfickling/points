@@ -53,6 +53,18 @@ const getPoints = (username: string) => {
 	return `${username} has ${points} points`;
 };
 
+const getUserId = (account: string) => /^<@([A-Z0-9]+)(\|[^>]*)?>$/.exec(account)?.[1];
+
+const resolveAccount = (account: string) => {
+	const userId = getUserId(account);
+
+	if (!userId) {
+		return account;
+	}
+
+	return Object.keys(db).find((key) => getUserId(key) === userId) ?? account;
+};
+
 type Transfer = {
 	fromUsername: string;
 	toUsername: string;
@@ -75,7 +87,10 @@ const parseTransfer = (text: string, commandSender: string): Transfer => {
 };
 
 const transferPoints = (text: string, commandSender: string) => {
-	const { fromUsername, toUsername, points } = parseTransfer(text, commandSender);
+	const transfer = parseTransfer(text, commandSender);
+	const fromUsername = resolveAccount(transfer.fromUsername);
+	const toUsername = resolveAccount(transfer.toUsername);
+	const { points } = transfer;
 
 	if (!fromUsername || !Number.isInteger(points) || points <= 0 || fromUsername === toUsername) {
 		throw new Error("why");
@@ -95,7 +110,7 @@ const transferPoints = (text: string, commandSender: string) => {
 };
 
 const getCommandSender = (userId: string, username: string) => {
-	const mention = `<@${userId}>`;
+	const mention = resolveAccount(`<@${userId}>`);
 
 	if (userId && Object.hasOwn(db, mention)) {
 		return mention;
